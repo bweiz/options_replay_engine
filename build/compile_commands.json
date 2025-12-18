@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/home/benwe/repos/options_replay_engine/build",
+  "command": "/usr/bin/c++  -I/home/benwe/repos/options_replay_engine/include -g -std=gnu++20 -Wall -Wextra -Wpedantic -o CMakeFiles/engine.dir/src/main.cpp.o -c /home/benwe/repos/options_replay_engine/src/main.cpp",
+  "file": "/home/benwe/repos/options_replay_engine/src/main.cpp",
+  "output": "CMakeFiles/engine.dir/src/main.cpp.o"
+}
+]
