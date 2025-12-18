@@ -6,8 +6,11 @@
 #include <cstdint>
 #include <ctime>
 #include <stdexcept>
+#include <optional>
 
 enum class Right { Call, Put };
+
+enum class EventType { Option, Underlying };
 
 struct UnderlyingRow {
     std::int64_t ts;
@@ -25,6 +28,13 @@ struct OptionRow {
     double bid;
     double ask;
     double iv;
+};
+
+struct Event {
+    std::int64_t ts;
+    EventType type;
+    UnderlyingRow underlying;
+    OptionRow option;
 };
 
 // ------------- CSV LineSplitter ---------------------------
@@ -122,11 +132,55 @@ char right_to_char(Right r) {
     return (r == Right::Call) ? 'C' : 'P';
 }
 // ---------------------------------------------------------
+
+
+// ------------ Event Creation -----------------------------
+std::optional<Event> read_next_underlying(std::ifstream& f) {
+     
+
+    std::string line;
+    while (std::getline(f, line)){ 
+        if(line.find_first_not_of(" \t\r") == std::string::npos) {
+            continue;
+        }
+        Event event{};
+        auto field = splitLine(line);
+        
+        UnderlyingRow row = parse_underlying_row(field);
+        event.ts = row.ts;
+        event.type = EventType::Underlying;
+        event.underlying = row;
+
+        return event;
+    }
+    return {};
+}
+
+std::optional<Event> read_next_option(std::ifstream& f) {
+    std::string line;
+    while(std::getline(f, line)) {
+        if(line.find_first_not_of(" \t\r") == std::string::npos) {
+            continue;
+        }
+        Event event{};
+        auto field = splitLine(line);
+
+        OptionRow row = parse_option_row(field);
+        event.ts = row.ts;
+        event.type = EventType::Option;
+        event.option = row;
+
+        return event;
+    }
+    return {};
+}
+// ---------------------------------------------------------
 int main()
 {
     const std::vector<std::string> u_labels = {"ts","open","high","low","close","volume"};
-    const std::vector<std::string> o_labels = {"ts","expiry","strike","right","bid","ask","iv"};
+    const std::vector<std::string> o_labels = {"ts","expiry","strike","right","bid","ask","iv                                               "};
 
+// ---- Open file, skip first -------------------------------------------
     std::ifstream underlying("data/underlying.csv");
     if (!underlying) {
         std::cerr << "Failed to open underlying \n";
@@ -135,31 +189,7 @@ int main()
     
     std::string line1;
     std::getline(underlying, line1);            // Skip first line
-    
-    std::cout << "UNDERLYING fields\n";
-    while (std::getline(underlying, line1)) {
-        if (line1.find_first_not_of(" \t\r") == std::string::npos) {
-            continue;
-        }
-        //std::vector<std::string> underlyingLine = parseLine(line1);
-        auto u_field = splitLine(line1); 
-        if (u_field.size() != u_labels.size()) {
-            std::cerr << "Underlying field count mismatch: got " << u_field.size()
-              << ", expected " << u_labels.size() << "\n";
-            return 1;
-        }
-
-        UnderlyingRow u_row = parse_underlying_row(u_field);
-        std::cout << "ts=" << u_row.ts
-          << " open=" << u_row.open
-          << " high=" << u_row.high
-          << " low=" << u_row.low
-          << " close=" << u_row.close
-          << " volume=" << u_row.volume << "\n";
-    }
-    
-    
-
+                                                //
     std::ifstream options("data/options.csv");
 
     if (!options) {
@@ -168,30 +198,37 @@ int main()
     }
     
     std::string line2;
+    std::getline(options, line2);            // Skip first line   
+// ---------------------------------------------------------------------                         
+    std::optional<Event> u_next{};
+    std::optional<Event> o_next{};
+    u_next = read_next_underlying(underlying);
+    o_next = read_next_option(options);
 
-    std::getline(options, line2);            // Skip first line
-    
-    std::cout << "OPTIONS fields\n";
-    while (std::getline(options, line2)) {
-        if (line2.find_first_not_of(" \t\r") == std::string::npos) {
-            continue;
+    while (u_next.has_value() || o_next.has_value()) {
+        if (u_next.has_value() && o_next.has_value()) {
+            Event* u_ev = &u_next.value();
+            Event* o_ev = &o_next.value();
+            if (u_ev->ts <= o_ev->ts) {
+                std::cout << "Underlying ts: " << u_ev->ts << '\n'; 
+                u_next = read_next_underlying(underlying);
+            }
+            else {
+                std::cout << "Option ts: " << o_ev->ts << '\n';
+                o_next = read_next_option(options);
+            }
         }
-        //std::vector<std::string> optionsLine = parseLine(line2);
-        auto o_field = splitLine(line2);
-        if (o_field.size() != o_labels.size()) {
-            std::cerr << "Options field count mismatch: got " << o_field.size()
-              << ", expected " << o_labels.size() << "\n";
-            return 1;
+        else if (u_next.has_value() && !o_next.has_value()) {
+            Event* u_ev = &u_next.value();
+            std::cout << "Underlying ts: " << u_ev->ts << '\n'; 
+            u_next = read_next_underlying(underlying);
         }
-
-        OptionRow o_row = parse_option_row(o_field);
-        std::cout << "ts=" << o_row.ts
-          << "  expiry=" << o_row.expiry_s
-          << "  strike=" << o_row.strike
-          << " right=" << right_to_char(o_row.right)
-          << " bid=" << o_row.bid
-          << " ask=" << o_row.ask
-          << " iv=" << o_row.iv << "\n";
+        else {
+            Event* o_ev = &o_next.value(); 
+            std::cout << "Option ts: " << o_ev->ts << '\n';
+            o_next = read_next_option(options);
+        }
     }
+    
     return 0;
 }
