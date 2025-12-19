@@ -7,6 +7,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(engine
   src/main.cpp
+  src/market/market_state.cpp
+  
 )
 
 target_include_directories(engine PRIVATE include)
