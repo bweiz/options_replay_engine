@@ -7,35 +7,8 @@
 #include <ctime>
 #include <stdexcept>
 #include <optional>
-
-enum class Right { Call, Put };
-
-enum class EventType { Option, Underlying };
-
-struct UnderlyingRow {
-    std::int64_t ts;
-    double open;
-    double high;
-    double low;
-    double close;
-    std::int64_t volume;
-};
-struct OptionRow {
-    std::int64_t ts;
-    std::int64_t expiry_s;
-    double strike;
-    Right right;
-    double bid;
-    double ask;
-    double iv;
-};
-
-struct Event {
-    std::int64_t ts;
-    EventType type;
-    UnderlyingRow underlying;
-    OptionRow option;
-};
+#include "../include/feed/event.hpp"
+#include "../include/market/market_state.hpp"
 
 // ------------- CSV LineSplitter ---------------------------
 std::vector<std::string> splitLine(const std::string& line){
@@ -204,30 +177,32 @@ int main()
     std::optional<Event> o_next{};
     u_next = read_next_underlying(underlying);
     o_next = read_next_option(options);
-
+    MarketState ms;
     while (u_next.has_value() || o_next.has_value()) {
         if (u_next.has_value() && o_next.has_value()) {
             Event* u_ev = &u_next.value();
             Event* o_ev = &o_next.value();
             if (u_ev->ts <= o_ev->ts) {
-                std::cout << "Underlying ts: " << u_ev->ts << '\n'; 
+                ms.apply(*u_ev); 
                 u_next = read_next_underlying(underlying);
             }
             else {
-                std::cout << "Option ts: " << o_ev->ts << '\n';
+                ms.apply(*o_ev);
                 o_next = read_next_option(options);
             }
         }
         else if (u_next.has_value() && !o_next.has_value()) {
             Event* u_ev = &u_next.value();
-            std::cout << "Underlying ts: " << u_ev->ts << '\n'; 
+            ms.apply(*u_ev); 
             u_next = read_next_underlying(underlying);
         }
         else {
             Event* o_ev = &o_next.value(); 
-            std::cout << "Option ts: " << o_ev->ts << '\n';
+            ms.apply(*o_ev);
             o_next = read_next_option(options);
         }
+        std::cout << ms.now() <<  " hasU: " << ms.has_underlying() 
+                  << " count: " << ms.option_count() <<  '\n';
     }
     
     return 0;
