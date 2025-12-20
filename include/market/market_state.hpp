@@ -4,7 +4,7 @@
 #include <optional>
 #include <unordered_map>
 
-#include <../include/feed/event.hpp>
+#include <feed/event.hpp>
 
 /*
  * MarketState:
@@ -30,7 +30,7 @@ public:
 
     std::int64_t now() const { return now_ts; }
 
-    bool has_underlying() { return underlying_.has_value(); }
+    bool has_underlying() const { return underlying_.has_value(); }
     const UnderlyingRow& latest_underlying() const; // throws if missing
 
     static OptionKey make_key(const OptionRow& row);

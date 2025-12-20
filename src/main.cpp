@@ -42,28 +42,54 @@ int main()
     u_next = read_next_underlying(underlying);
     o_next = read_next_option(options);
     MarketState ms;
+    OptionKey target;
+
+    target.expiry_s = 1737072000;
+    target.strike_x100 = 10000;
+    target.right = Right::Call;
+
     while (u_next.has_value() || o_next.has_value()) {
         if (u_next.has_value() && o_next.has_value()) {
             Event* u_ev = &u_next.value();
             Event* o_ev = &o_next.value();
             if (u_ev->ts <= o_ev->ts) {
-                ms.apply(*u_ev); 
+                ms.apply(*u_ev);
+                
                 u_next = read_next_underlying(underlying);
             }
             else {
                 ms.apply(*o_ev);
+                
                 o_next = read_next_option(options);
             }
         }
         else if (u_next.has_value() && !o_next.has_value()) {
             Event* u_ev = &u_next.value();
             ms.apply(*u_ev); 
+            
             u_next = read_next_underlying(underlying);
         }
         else {
             Event* o_ev = &o_next.value(); 
             ms.apply(*o_ev);
+            
             o_next = read_next_option(options);
+        }
+        if (!ms.has_underlying()) {
+            continue;
+        }
+        else {
+            auto quote_update = ms.get_option_quote(target);
+            if (!quote_update.has_value()) {
+                continue;
+            }
+            else {
+                OptionRow row = *quote_update;      // Reference to optional type 
+                double mid = (row.bid + row.ask) / 2;
+                double T = static_cast<double>(target.expiry_s - ms.now()) / 31536000;
+                std::cout << "Midprice: " << mid << ", Years to expiry: "
+                          << T << '\n';
+            }
         }
         std::cout << ms.now() <<  " hasU: " << ms.has_underlying() 
                   << " count: " << ms.option_count() <<  '\n';
