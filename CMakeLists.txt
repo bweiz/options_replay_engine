@@ -12,6 +12,7 @@ add_executable(engine
   src/feed/csv_reader.cpp
 
   src/market/market_state.cpp
+  src/pricing/black_scholes.cpp
 )
 
 target_include_directories(engine PRIVATE include)

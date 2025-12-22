@@ -11,6 +11,7 @@
 #include <market/market_state.hpp>
 #include <feed/csv.hpp>
 #include <feed/csv_reader.hpp>
+#include <pricing/black_scholes.hpp>
 
 
 int main()
@@ -87,8 +88,11 @@ int main()
                 OptionRow row = *quote_update;      // Reference to optional type 
                 double mid = (row.bid + row.ask) / 2;
                 double T = static_cast<double>(target.expiry_s - ms.now()) / 31536000;
-                std::cout << "Midprice: " << mid << ", Years to expiry: "
-                          << T << '\n';
+                double theo = black_scholes(ms.latest_underlying().close, target.strike_x100/100.0, T, row.iv, 0.03, row.right);
+                double edge{ theo - mid };
+                std::cout << "now: " << ms.now() << " S: " << ms.latest_underlying().close << " K: " << target.strike_x100/100.0 << " mid: " << mid
+                    << " theo: " << theo << " edge: " << edge << " iv: " << row.iv
+                    << " T: " << T << '\n';
             }
         }
         std::cout << ms.now() <<  " hasU: " << ms.has_underlying() 
