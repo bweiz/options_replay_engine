@@ -13,6 +13,8 @@ add_executable(engine
 
   src/market/market_state.cpp
   src/pricing/black_scholes.cpp
+
+  src/strategy/edge_threshold.cpp
 )
 
 target_include_directories(engine PRIVATE include)
