@@ -12,7 +12,7 @@
 #include <feed/csv.hpp>
 #include <feed/csv_reader.hpp>
 #include <pricing/black_scholes.hpp>
-
+#include <strategy/edge_threshold.hpp>
 
 int main()
 {
@@ -48,6 +48,9 @@ int main()
     target.expiry_s = 1737072000;
     target.strike_x100 = 10000;
     target.right = Right::Call;
+    EdgeThresholdStrategy strat;
+    strat.cfg.entry_edge = 1.6;
+    strat.cfg.exit_edge = 1.4;
 
     while (u_next.has_value() || o_next.has_value()) {
         if (u_next.has_value() && o_next.has_value()) {
@@ -55,7 +58,7 @@ int main()
             Event* o_ev = &o_next.value();
             if (u_ev->ts <= o_ev->ts) {
                 ms.apply(*u_ev);
-                
+                 
                 u_next = read_next_underlying(underlying);
             }
             else {
@@ -76,6 +79,7 @@ int main()
             
             o_next = read_next_option(options);
         }
+        
         if (!ms.has_underlying()) {
             continue;
         }
@@ -85,18 +89,40 @@ int main()
                 continue;
             }
             else {
-                OptionRow row = *quote_update;      // Reference to optional type 
-                double mid = (row.bid + row.ask) / 2;
-                double T = static_cast<double>(target.expiry_s - ms.now()) / 31536000;
-                double theo = black_scholes(ms.latest_underlying().close, target.strike_x100/100.0, T, row.iv, 0.03, row.right);
-                double edge{ theo - mid };
-                std::cout << "now: " << ms.now() << " S: " << ms.latest_underlying().close << " K: " << target.strike_x100/100.0 << " mid: " << mid
-                    << " theo: " << theo << " edge: " << edge << " iv: " << row.iv
-                    << " T: " << T << '\n';
+                Action a = strat.evaluate(ms, target, 0.03);
+                const bool DEBUG_STEP = true;
+                if (DEBUG_STEP) {
+                    std::cout
+                        << "now=" << ms.now()
+                        << " hasU=" << ms.has_underlying()
+                        << " optCount=" << ms.option_count();
+
+                    // Did we compute a quote + pricing this step?
+                    if (strat.last.valid) {
+                        std::cout
+                            << " S=" << strat.last.S
+                            << " K=" << strat.last.K
+                            << " mid=" << strat.last.mid
+                            << " theo=" << strat.last.theo
+                            << " edge=" << strat.last.edge
+                            << " iv=" << strat.last.iv
+                            << " T=" << strat.last.T;
+                    } else {
+                        std::cout << " (no signal: missing underlying or quote)";
+                    }
+
+                    // What did the strategy decide?
+                    std::cout << " action=";
+                    switch (a) {
+                        case Action::None:      std::cout << "None"; break;
+                        case Action::EnterLong: std::cout << "ENTER"; break;
+                        case Action::Exit:      std::cout << "EXIT"; break;
+                    }
+                    std::cout << '\n';
+                } 
             }
         }
-        std::cout << ms.now() <<  " hasU: " << ms.has_underlying() 
-                  << " count: " << ms.option_count() <<  '\n';
+        
     }
     
     return 0;
