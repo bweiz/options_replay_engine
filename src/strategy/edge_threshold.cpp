@@ -36,7 +36,7 @@ Action EdgeThresholdStrategy::evaluate(const MarketState& ms,
     const double edge = theo - mid;
 
     last.valid = true;
-    last.S = S; last.K = K; last.mid = mid; last.theo = theo;
+    last.S = S; last.K = K; last.mid = mid; last.theo = theo; last.bid = q->bid; last.ask = q->ask;
     last.edge = edge; last.iv = q->iv; last.T = T;
 
     // decision logic with memory

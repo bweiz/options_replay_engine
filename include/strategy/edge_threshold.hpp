@@ -37,6 +37,8 @@ struct LastSignal {
     double edge{0.0};
     double iv{0.0};
     double T{0.0};
+    double ask{0.0};
+    double bid{0.0};
 };
 
 struct EdgeThresholdStrategy {
